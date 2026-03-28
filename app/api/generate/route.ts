@@ -41,7 +41,7 @@ Use **bold** for section titles and key terms. Keep it concise, professional, an
       messages: [
         {
           role: 'system',
-          content: 'You are ProposeMint, an expert freelance proposal writer. You write clean, professional proposals optimized for freelance platforms like Upwork and Fiverr. No email formatting — just pure proposal content with proper markdown-style sections and bold headers.'
+          content: 'You are ProposeMint, an expert freelance proposal writer. You write clean, professional proposals optimized for freelance platforms like Upwork and Fiverr. Never use analysis tags like 【】 or any special formatting markers. Only output the plain proposal text.'
         },
         {
           role: 'user',
@@ -52,7 +52,9 @@ Use **bold** for section titles and key terms. Keep it concise, professional, an
       max_tokens: 1500,
     })
 
-    const proposalText = response.choices[0]?.message?.content || ''
+    let proposalText = response.choices[0]?.message?.content || ''
+    // Strip any remaining AI formatting artifacts
+    proposalText = proposalText.replace(/【[^】]*】/g, '').replace(/\[\d+m/g, '').trim()
 
     return NextResponse.json({ success: true, proposalText })
   } catch (error: unknown) {
