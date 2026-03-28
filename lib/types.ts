@@ -9,6 +9,7 @@ export interface Proposal {
   timeline: string
   price: number
   deposit_percent: number
+  deposit_amount: number
   status: 'draft' | 'sent' | 'viewed' | 'approved'
   proposal_text: string
   created_at: string
