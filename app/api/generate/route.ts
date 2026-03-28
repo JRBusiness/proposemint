@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const depositAmount = Math.round(price * (depositPercent / 100))
     const companyContext = clientCompany ? ` at ${clientCompany}` : ''
 
-    const prompt = `You are a professional proposal writer for freelancers. Write a compelling, polished business proposal email based on the following information:
+    const prompt = `Write a professional freelance project proposal. Write it as a formal project proposal document — NOT as an email. No greeting like "Dear..." or sign-off like "Best regards". Just pure proposal content that can be copied and pasted into Upwork, Fiverr, or any freelance platform.
 
 CLIENT: ${clientName}${companyContext}
 PROJECT NEEDS: ${projectDescription}
@@ -27,23 +27,21 @@ TIMELINE: ${timeline}
 PROJECT PRICE: $${price.toLocaleString()}
 DEPOSIT REQUIRED: $${depositAmount.toLocaleString()} (${depositPercent}%)
 
-Write this as a professional email proposal. Include:
-1. A warm, professional greeting
-2. Brief acknowledgment of their project
-3. Project overview section
-4. Detailed scope of work
-5. Timeline with milestones
-6. Investment breakdown (total price and deposit amount)
-7. Clear next steps for them to approve and pay the deposit
+Format it as a clean proposal with these sections:
+1. Project Overview
+2. Scope of Work
+3. Timeline & Milestones
+4. Investment
+5. Next Steps
 
-Keep it concise but compelling. Use formatting like **bold** for key terms. The tone should be confident but not arrogant.`
+Use **bold** for section titles and key terms. Keep it concise, professional, and persuasive. No email formatting.`
 
     const response = await minimax.chat.completions.create({
       model: 'MiniMax-M2',
       messages: [
         {
           role: 'system',
-          content: 'You are ProposeMint, an AI that writes professional, compelling business proposals for freelancers. Be confident, clear, and persuasive. Format proposals with proper sections and markdown-style emphasis.'
+          content: 'You are ProposeMint, an expert freelance proposal writer. You write clean, professional proposals optimized for freelance platforms like Upwork and Fiverr. No email formatting — just pure proposal content with proper markdown-style sections and bold headers.'
         },
         {
           role: 'user',

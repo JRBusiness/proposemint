@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowLeft, Sparkles, Send, Copy, Check } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Sparkles, Copy, Check, Send, Mail, X } from 'lucide-react'
 
 const steps = [
   { id: 1, title: 'Client Info', question: 'Who is this proposal for?', sub: 'Tell us about your client' },
@@ -43,6 +43,74 @@ function CustomSelect({ value, onChange, options }: { value: string; onChange: (
   )
 }
 
+function EmailPreview({ proposal, clientName, clientEmail, clientCompany, price, deposit, depositAmount, onClose }: {
+  proposal: string; clientName: string; clientEmail: string; clientCompany: string;
+  price: number; deposit: string; depositAmount: number; onClose: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-dark">
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Mail className="w-5 h-5 text-sky-400" />
+            <h1 className="text-xl font-bold">Email Preview</h1>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Email header */}
+        <div className="mb-6 p-4 rounded-xl bg-white/[0.03] border border-white/10">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-white/30 mb-1">To:</p>
+              <p className="text-white">{clientEmail || 'No email set'}</p>
+            </div>
+            <div>
+              <p className="text-white/30 mb-1">Subject:</p>
+              <p className="text-white">Project Proposal — {clientCompany || clientName}</p>
+            </div>
+            <div>
+              <p className="text-white/30 mb-1">Value:</p>
+              <p className="text-sky-400 font-bold">${Number(price).toLocaleString()} (${depositAmount.toLocaleString()} deposit)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Email body */}
+        <div className="rounded-xl border border-white/10 overflow-hidden">
+          <div className="p-6 bg-white/[0.02]" style={{ background: '#0d0d0d' }}>
+            <p className="text-white/50 text-sm mb-4">Email body (copy and paste):</p>
+            <div className="p-6 rounded-lg border border-white/10 bg-dark">
+              <p className="text-white mb-6">Hi {clientName},</p>
+              <div className="prose prose-invert prose-sm max-w-none text-white/80 whitespace-pre-wrap">
+                {proposal}
+              </div>
+              <div className="mt-6 pt-4 border-t border-white/10">
+                <p className="text-white/80">Best regards,</p>
+                <p className="text-white">[Your Name]</p>
+                <p className="text-white/50 text-sm">[Your Email]</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-4">
+          <button onClick={onClose}
+            className="px-6 py-4 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-medium rounded-xl transition-all flex-1">
+            Back to Editor
+          </button>
+          <button
+            className="px-6 py-4 bg-sky-500 hover:bg-sky-400 text-dark font-bold rounded-xl transition-all flex-1 flex items-center justify-center gap-2">
+            <Send className="w-5 h-5" /> Open in Email Client
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function NewProposal() {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
@@ -51,8 +119,8 @@ export default function NewProposal() {
   })
   const [proposal, setProposal] = useState('')
   const [generating, setGenerating] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showEmailPreview, setShowEmailPreview] = useState(false)
   const router = useRouter()
 
   const depositAmount = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
@@ -81,17 +149,11 @@ export default function NewProposal() {
       } else {
         alert(data.error || 'Failed to generate')
       }
-    } catch (err) {
+    } catch {
       alert('Something went wrong')
     } finally {
       setGenerating(false)
     }
-  }
-
-  const handleSend = async () => {
-    setLoading(true)
-    await new Promise(r => setTimeout(r, 1500))
-    router.push('/dashboard')
   }
 
   const handleCopy = () => {
@@ -100,7 +162,23 @@ export default function NewProposal() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Show proposal result
+  // Show email preview
+  if (showEmailPreview) {
+    return (
+      <EmailPreview
+        proposal={proposal}
+        clientName={form.clientName}
+        clientEmail={form.clientEmail}
+        clientCompany={form.clientCompany}
+        price={Number(form.price)}
+        deposit={form.deposit}
+        depositAmount={depositAmount}
+        onClose={() => setShowEmailPreview(false)}
+      />
+    )
+  }
+
+  // Show generated proposal
   if (proposal) {
     return (
       <div className="min-h-screen bg-dark">
@@ -110,41 +188,49 @@ export default function NewProposal() {
               <Check className="w-5 h-5 text-green-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-black">Proposal Generated!</h1>
-              <p className="text-white/50 text-sm">Review and send to your client</p>
+              <h1 className="text-2xl font-black">Proposal Ready</h1>
+              <p className="text-white/50 text-sm">Copy and paste into Upwork, Fiverr, or any platform</p>
             </div>
           </div>
 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-medium text-white/70">Generated Proposal</label>
+              <label className="text-sm font-medium text-white/70">Your Proposal</label>
               <button onClick={handleCopy}
                 className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy to clipboard'}
               </button>
             </div>
-            <textarea readOnly value={proposal} rows={18}
-              className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white/80 text-sm leading-relaxed resize-none" />
+            <div className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10">
+              <pre className="text-white/80 text-sm leading-relaxed whitespace-pre-wrap font-sans">{proposal}</pre>
+            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 mb-6">
-            <p className="text-sm text-white/70">
-              <span className="text-sky-400 font-medium">Sending to:</span> {form.clientName} {form.clientCompany ? `(${form.clientCompany})` : ''} at {form.clientEmail || 'no email provided'}
-            </p>
-            <p className="text-sm text-white/70 mt-1">
-              <span className="text-sky-400 font-medium">Project value:</span> ${Number(form.price).toLocaleString()} — Deposit: ${depositAmount.toLocaleString()} ({form.deposit}%)
-            </p>
+          {/* Quick stats */}
+          <div className="flex gap-4 mb-6">
+            <div className="flex-1 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+              <p className="text-white/30 text-xs mb-1">Project Value</p>
+              <p className="text-xl font-bold text-white">${Number(form.price).toLocaleString()}</p>
+            </div>
+            <div className="flex-1 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+              <p className="text-white/30 text-xs mb-1">Deposit ({form.deposit}%)</p>
+              <p className="text-xl font-bold text-sky-400">${depositAmount.toLocaleString()}</p>
+            </div>
+            <div className="flex-1 p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+              <p className="text-white/30 text-xs mb-1">Client</p>
+              <p className="text-lg font-bold text-white truncate">{form.clientName}</p>
+            </div>
           </div>
 
           <div className="flex gap-4">
             <button onClick={() => setProposal('')}
               className="px-6 py-4 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-medium rounded-xl transition-all flex-1">
-              Regenerate
+              Edit / Regenerate
             </button>
-            <button onClick={handleSend} disabled={loading}
-              className="px-6 py-4 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 text-dark font-bold rounded-xl transition-all flex-1 flex items-center justify-center gap-2">
-              {loading ? 'Sending...' : (<>Send Proposal <Send className="w-5 h-5" /></>)}
+            <button onClick={() => setShowEmailPreview(true)}
+              className="px-6 py-4 bg-sky-500 hover:bg-sky-400 text-dark font-bold rounded-xl transition-all flex-1 flex items-center justify-center gap-2">
+              <Mail className="w-5 h-5" /> Preview as Email
             </button>
           </div>
         </div>
@@ -257,7 +343,7 @@ export default function NewProposal() {
           ) : (
             <button onClick={handleGenerate} disabled={generating || !form.clientName || !form.project || !form.price}
               className="px-6 py-4 bg-sky-500 hover:bg-sky-400 disabled:bg-sky-500/50 disabled:cursor-not-allowed text-dark font-bold rounded-xl transition-all flex-1 flex items-center justify-center gap-2">
-              {generating ? (<><Sparkles className="w-5 h-5 animate-pulse" /> Generating with AI...</>) : 'Generate Proposal'}
+              {generating ? (<><Sparkles className="w-5 h-5 animate-pulse" /> Generating...</>) : 'Generate Proposal'}
             </button>
           )}
         </div>
