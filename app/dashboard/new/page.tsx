@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowLeft, Sparkles, Copy, Check, Send, Mail, X } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Sparkles, Copy, Check, Send, Mail, X, Save } from 'lucide-react'
 
 const steps = [
   { id: 1, title: 'Client Info', question: 'Who is this proposal for?', sub: 'Tell us about your client' },
@@ -126,6 +126,32 @@ export default function NewProposal() {
   const depositAmount = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-sky-500/50 text-lg transition-all'
 
+  const saveProposal = (proposalText: string) => {
+    const id = `proposal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const depositAmt = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
+    const newProposal = {
+      id,
+      client_name: form.clientName,
+      client_email: form.clientEmail,
+      client_company: form.clientCompany,
+      project_description: form.project,
+      scope: form.scope,
+      timeline: form.timeline,
+      price: Number(form.price),
+      deposit_percent: Number(form.deposit),
+      deposit_amount: depositAmt,
+      status: 'draft',
+      proposal_text: proposalText,
+      created_at: new Date().toISOString(),
+    }
+
+    const saved = localStorage.getItem('proposals')
+    const proposals = saved ? JSON.parse(saved) : []
+    proposals.unshift(newProposal)
+    localStorage.setItem('proposals', JSON.stringify(proposals))
+    return id
+  }
+
   const handleGenerate = async () => {
     if (!form.clientName || !form.project || !form.price) return
     setGenerating(true)
@@ -154,6 +180,12 @@ export default function NewProposal() {
     } finally {
       setGenerating(false)
     }
+  }
+
+  const handleSave = () => {
+    if (!proposal) return
+    saveProposal(proposal)
+    router.push('/dashboard')
   }
 
   const handleCopy = () => {
@@ -228,11 +260,15 @@ export default function NewProposal() {
               className="px-6 py-4 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-medium rounded-xl transition-all flex-1">
               Edit / Regenerate
             </button>
-            <button onClick={() => setShowEmailPreview(true)}
+            <button onClick={handleSave}
               className="px-6 py-4 bg-sky-500 hover:bg-sky-400 text-dark font-bold rounded-xl transition-all flex-1 flex items-center justify-center gap-2">
-              <Mail className="w-5 h-5" /> Preview as Email
+              <Save className="w-5 h-5" /> Save to Dashboard
             </button>
           </div>
+          <button onClick={() => setShowEmailPreview(true)}
+            className="w-full mt-3 py-3 border border-white/10 hover:border-white/20 text-white/70 hover:text-white font-medium rounded-xl transition-all flex items-center justify-center gap-2">
+            <Mail className="w-4 h-4" /> Preview as Email
+          </button>
         </div>
       </div>
     )
