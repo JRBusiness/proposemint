@@ -2,22 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, FileText, Eye, MoreVertical, Trash2, Copy, Send } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, FileText, Eye, MoreVertical, Trash2, Copy, Send, LogOut, User } from 'lucide-react'
+import { useAuth } from '../components/AuthProvider'
+import { supabase } from '@/lib/supabase'
+import type { Proposal } from '@/lib/types'
 
-interface Proposal {
-  id: string
-  client_name: string
-  client_email: string
-  client_company: string
-  price: number
-  deposit_percent: number
-  deposit_amount: number
-  status: 'draft' | 'sent' | 'viewed' | 'approved'
-  proposal_text: string
-  created_at: string
-}
-
-function ProposalMenu({ proposal, onDelete }: { proposal: Proposal; onDelete: () => void }) {
+function ProposalMenu({ proposal, onDelete, onView }: { proposal: Proposal; onDelete: () => void; onView: () => void }) {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -50,13 +41,12 @@ function ProposalMenu({ proposal, onDelete }: { proposal: Proposal; onDelete: ()
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-2 w-48 py-2 rounded-xl border border-white/10 overflow-hidden z-50" style={{ background: '#111' }}>
-          <Link
-            href={`/proposal/${proposal.id}`}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-            onClick={() => setOpen(false)}
+          <button
+            onClick={() => { onView(); setOpen(false) }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
           >
             <Eye className="w-4 h-4" /> View Details
-          </Link>
+          </button>
           <button
             onClick={handleCopy}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
@@ -85,30 +75,41 @@ function ProposalMenu({ proposal, onDelete }: { proposal: Proposal; onDelete: ()
 }
 
 export default function Dashboard() {
+  const { user, loading: authLoading, signOut } = useAuth()
+  const router = useRouter()
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadProposals()
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
 
-  const loadProposals = () => {
-    const saved = localStorage.getItem('proposals')
-    if (saved) {
-      try {
-        setProposals(JSON.parse(saved))
-      } catch {
-        setProposals([])
-      }
+  useEffect(() => {
+    if (user) {
+      loadProposals()
+    }
+  }, [user])
+
+  const loadProposals = async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (!error && data) {
+      setProposals(data)
     }
     setLoading(false)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Delete this proposal?')) return
-    const updated = proposals.filter(p => p.id !== id)
-    setProposals(updated)
-    localStorage.setItem('proposals', JSON.stringify(updated))
+    await supabase.from('proposals').delete().eq('id', id)
+    setProposals(proposals.filter(p => p.id !== id))
   }
 
   const getStatusBadge = (proposal: Proposal) => {
@@ -132,12 +133,21 @@ export default function Dashboard() {
     return proposal.deposit_amount || Math.round(proposal.price * (proposal.deposit_percent / 100))
   }
 
-  if (loading) {
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/')
+  }
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
         <p className="text-white/50">Loading...</p>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
@@ -149,7 +159,16 @@ export default function Dashboard() {
             <span className="font-bold text-xl">ProposeMint</span>
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-white/50">Free Plan</span>
+            <div className="flex items-center gap-2 text-sm text-white/50">
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">{user.email}</span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
             <button className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-dark text-sm font-bold rounded-lg transition-colors">Upgrade</button>
           </div>
         </div>
@@ -182,7 +201,8 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-4">
             {proposals.map((proposal) => (
-              <div key={proposal.id} className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all">
+              <div key={proposal.id} className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all cursor-pointer"
+                onClick={() => router.push(`/proposal/${proposal.id}`)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500/20 to-blue-500/20 flex items-center justify-center">
@@ -202,7 +222,7 @@ export default function Dashboard() {
                       <p className="text-white/50 text-sm">${depositAmount(proposal).toLocaleString()} deposit</p>
                     </div>
                     {getStatusBadge(proposal)}
-                    <ProposalMenu proposal={proposal} onDelete={() => handleDelete(proposal.id)} />
+                    <ProposalMenu proposal={proposal} onDelete={() => handleDelete(proposal.id)} onView={() => router.push(`/proposal/${proposal.id}`)} />
                   </div>
                 </div>
               </div>

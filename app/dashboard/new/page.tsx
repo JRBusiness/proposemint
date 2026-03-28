@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ArrowLeft, Sparkles, Copy, Check, Send, Mail, X, Save } from 'lucide-react'
+import { useAuth } from '../components/AuthProvider'
+import { supabase } from '@/lib/supabase'
 
 const steps = [
   { id: 1, title: 'Client Info', question: 'Who is this proposal for?', sub: 'Tell us about your client' },
@@ -112,6 +114,22 @@ function EmailPreview({ proposal, clientName, clientEmail, clientCompany, price,
 }
 
 export default function NewProposal() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-dark flex items-center justify-center">
+        <p className="text-white/50">Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    router.push('/login')
+    return null
+  }
+
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientCompany: '',
@@ -121,35 +139,45 @@ export default function NewProposal() {
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showEmailPreview, setShowEmailPreview] = useState(false)
-  const router = useRouter()
 
   const depositAmount = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-sky-500/50 text-lg transition-all'
 
-  const saveProposal = (proposalText: string) => {
-    const id = `proposal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const saveProposal = async (proposalText: string) => {
     const depositAmt = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
-    const newProposal = {
-      id,
-      client_name: form.clientName,
-      client_email: form.clientEmail,
-      client_company: form.clientCompany,
-      project_description: form.project,
-      scope: form.scope,
-      timeline: form.timeline,
-      price: Number(form.price),
-      deposit_percent: Number(form.deposit),
-      deposit_amount: depositAmt,
-      status: 'draft',
-      proposal_text: proposalText,
-      created_at: new Date().toISOString(),
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      alert('You must be logged in to save proposals')
+      router.push('/login')
+      return
     }
 
-    const saved = localStorage.getItem('proposals')
-    const proposals = saved ? JSON.parse(saved) : []
-    proposals.unshift(newProposal)
-    localStorage.setItem('proposals', JSON.stringify(proposals))
-    return id
+    const { data, error } = await supabase
+      .from('proposals')
+      .insert({
+        user_id: user.id,
+        client_name: form.clientName,
+        client_email: form.clientEmail,
+        client_company: form.clientCompany,
+        project_description: form.project,
+        scope: form.scope,
+        timeline: form.timeline,
+        price: Number(form.price),
+        deposit_percent: Number(form.deposit),
+        deposit_amount: depositAmt,
+        status: 'draft',
+        proposal_text: proposalText,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      alert('Failed to save proposal: ' + error.message)
+      return
+    }
+
+    return data?.id
   }
 
   const handleGenerate = async () => {
@@ -182,9 +210,9 @@ export default function NewProposal() {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!proposal) return
-    saveProposal(proposal)
+    await saveProposal(proposal)
     router.push('/dashboard')
   }
 
