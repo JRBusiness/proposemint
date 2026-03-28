@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ArrowLeft, Sparkles, Copy, Check, Send, Mail, X, Save } from 'lucide-react'
-import { useAuth } from '../components/AuthProvider'
+import { useAuth } from '../../components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
 const steps = [
