@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Sparkles, ChevronDown } from 'lucide-react'
 
 const steps = [
   { id: 1, title: 'Client Info', question: 'Who is this proposal for?', sub: 'Tell us about your client' },
@@ -11,6 +11,44 @@ const steps = [
   { id: 4, title: 'Timeline', question: 'When do they need it?', sub: 'Set realistic expectations' },
   { id: 5, title: 'Pricing', question: 'How much will it cost?', sub: 'Set your price and deposit' },
 ]
+
+const depositOptions = [
+  { value: '25', label: '25% deposit' },
+  { value: '30', label: '30% deposit' },
+  { value: '50', label: '50% deposit' },
+]
+
+function CustomSelect({ value, onChange, options, dark = true }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; dark?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-lg transition-all ${dark ? 'bg-white/5 border border-white/10 text-white hover:bg-white/[0.07]' : 'bg-white border border-gray-200 text-dark'}`}
+      >
+        <span>{selected?.label}</span>
+        <ChevronDown className={`w-5 h-5 text-white/50 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 w-full mt-2 py-2 rounded-xl border border-white/10 overflow-hidden" style={{ background: '#111' }}>
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-4 py-2.5 text-lg transition-colors ${opt.value === value ? 'text-sky-400 bg-sky-500/10' : 'text-white/70 hover:text-white hover:bg-white/5'}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function NewProposal() {
   const [step, setStep] = useState(1)
@@ -31,11 +69,10 @@ export default function NewProposal() {
   }
 
   const depositAmount = form.price ? Math.round(Number(form.price) * Number(form.deposit) / 100) : 0
-
   const inputClass = 'w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-sky-500/50 text-lg transition-all'
 
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-dark" onClick={() => setOpen(false)}>
       <div className="max-w-2xl mx-auto px-6 py-12">
         <button onClick={handleBack} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to dashboard
@@ -117,13 +154,14 @@ export default function NewProposal() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-white/70 mb-2">Deposit percentage to secure the project</label>
-                <select value={form.deposit} onChange={e => setForm({...form, deposit: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-sky-500/50 text-lg [&>option]:bg-dark">
-                  <option value="25">25% deposit</option>
-                  <option value="30">30% deposit</option>
-                  <option value="50">50% deposit</option>
-                </select>
-                {form.price && <p className="text-sky-400 mt-2 text-sm">Deposit amount: ${depositAmount.toLocaleString()}</p>}
+                <CustomSelect
+                  value={form.deposit}
+                  onChange={v => setForm({...form, deposit: v})}
+                  options={depositOptions}
+                />
+                {form.price && (
+                  <p className="text-sky-400 mt-2 text-sm">Deposit amount: ${depositAmount.toLocaleString()}</p>
+                )}
               </div>
             </div>
           )}
